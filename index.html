@@ -1,0 +1,471 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tron - HackMyVM - Bericht</title> <!-- Angepasster Titel -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <!-- Header mit angepasstem Titel und Schwierigkeitsgrad -->
+    <div class="header-bg"> <!-- Hintergrundfarbe wird durch CSS gesteuert (#03b5f5) -->
+        <h1>Tron - HackMyVM - Level: Easy - Bericht</h1>
+        <div class="level-container">
+            <h2>Easy</h2> <!-- Schwierigkeitsgrad ohne Inline-Style, Farbe (rot) durch CSS -->
+            <div class="circle"> <!-- Segmentfarben (rot) durch CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div> <!-- Hintergrundfarbe (passend zu Header) durch CSS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Tools Liste basierend auf dem Text -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">Web Browser (View Source)</div>
+                <div class="tool-item">base64</div>
+                <div class="tool-item">Brainfuck Interpreter (z.B. dcode.fr)</div>
+                <div class="tool-item">Substitution Cipher (Atbash)</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">su</div>
+                <div class="tool-item">cat</div>
+                <!-- Optional: nano, openssl (wurden probiert) -->
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Inhaltsverzeichnis-Links -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration & Clue Hunting</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (Root Access via Misconfiguration)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `arp-scan -l` wird verwendet, um aktive Geräte im lokalen Netzwerksegment zu identifizieren, indem ARP-Anfragen gesendet und die Antworten (IP- und MAC-Adressen) aufgelistet werden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein aktiver Host wurde unter der IP-Adresse 192.168.2.115 gefunden. Die MAC-Adresse 08:00:27:d1:e7:b4 gehört zu PCS Systemtechnik GmbH, was typischerweise auf eine Oracle VirtualBox-VM hinweist. Dies ist unser Ziel.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Die Ziel-IP ist identifiziert. Führe als Nächstes einen Port-Scan mit Nmap durch, um offene Dienste und potenzielle Angriffsvektoren zu finden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Setzen Sie Netzwerk-Monitoring ein, um ungewöhnliche Scan-Aktivitäten (wie ARP-Scans) zu erkennen. Netzwerksegmentierung kann die Sichtbarkeit von Hosts einschränken.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.115   08:00:27:d1:e7:b4       PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ein Nmap-Scan wird gegen das Ziel 192.168.2.115 durchgeführt, um offene Ports, Dienste, Versionen und das Betriebssystem zu ermitteln.
+                *   `-sS`: TCP SYN (Stealth) Scan.
+                *   `-sC`: Führt Standard-Nmap-Skripte aus.
+                *   `-T5`: Sehr schnelles Timing ("insane").
+                *   `-A`: Aktiviert OS-Erkennung, Versionserkennung, Skript-Scanning und Traceroute.
+                *   `-p-`: Scannt alle 65535 TCP-Ports.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Scan identifizierte zwei offene Ports:
+                *   **Port 22 (SSH):** OpenSSH 7.9p1 auf Debian 10. Eine Standardkonfiguration.
+                *   **Port 80 (HTTP):** Apache httpd 2.4.38 auf Debian. Ebenfalls eine Standardkonfiguration.
+                Die erkannten Dienste sind üblich und die Versionen weisen nicht auf offensichtliche, direkt ausnutzbare Schwachstellen hin (obwohl dies immer weiter geprüft werden sollte). Der Fokus liegt nun auf dem Webserver.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Beginne mit der Enumeration des Webservers auf Port 80. Untersuche die Webseite auf Inhalte, Funktionen und versteckte Verzeichnisse/Dateien. SSH bleibt eine Option, falls Credentials gefunden werden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Halten Sie SSH- und Webserver-Dienste stets aktuell. Konfigurieren Sie SSH sicher (z.B. Deaktivierung von Root-Login und Passwort-Authentifizierung zugunsten von Schlüsselpaaren). Überwachen Sie Webserver-Logs auf verdächtige Anfragen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.115 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2023-10-27 11:00 CET
+Nmap scan report for 192.168.2.115
+Host is up (0.00021s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey:
+|   2048 SHA256:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (RSA)
+|   256 SHA256:YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY (ECDSA)
+|_  256 SHA256:ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ (ED25519)
+80/tcp open  http    Apache httpd 2.4.38 ((Debian))
+|_http-server-header: Apache/2.4.38 (Debian)
+|_http-title: Site doesn't have a title (text/html).
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 15.83 seconds
+                    </pre> <!-- Hostkeys wurden anonymisiert, da sie im Originaltext fehlten -->
+                </div>
+            </div>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration & Clue Hunting</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Gobuster wird verwendet, um nach versteckten Verzeichnissen und Dateien auf dem Webserver zu suchen. Eine gängige Wortliste (`directory-list-2.3-medium.txt`) und verschiedene Dateierweiterungen werden verwendet. `-e` zeigt die vollen URLs an.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Mehrere Verzeichnisse und Dateien wurden gefunden:
+                *   Standard-Verzeichnisse/Dateien: `/index.html`, `/img`, `/manual`, `/font`.
+                *   Interessante Funde:
+                    *   `/robots.txt`: Enthält oft Hinweise oder Ausschlüsse für Webcrawler.
+                    *   `/MCP`: Master Control Program? Klingt nach einem Tron-Thema und potenziell wichtig.
+                    *   `/server-status`: Zugriff verboten (403), wie erwartet ohne spezielle Konfiguration.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Untersuche den Inhalt von `/robots.txt` genau. Erkunde das Verzeichnis `/MCP` auf weitere Dateien oder Informationen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass `/robots.txt` keine internen oder sensiblen Pfade preisgibt. Beschränken Sie den Zugriff auf nicht-öffentliche Verzeichnisse wie `/MCP` oder `/manual`, falls diese nicht für die Öffentlichkeit bestimmt sind. Deaktivieren oder sichern Sie `/server-status` und ähnliche Statusseiten.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.115/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -e -x php,html,xml,zip,7z,tar,bak,sql,py,pl,txt</span></div>
+                    <pre>
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.115/
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Status codes:            200,204,301,302,307,401,403,405
+[+] User Agent:              gobuster/3.1.0
+[+] Extensions:              php,html,xml,zip,7z,tar,bak,sql,py,pl,txt
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+2023/10/27 11:05:01 Starting gobuster
+===============================================================
+http://192.168.2.115/index.html           (Status: 200) [Size: 309]
+http://192.168.2.115/img                  (Status: 301) [Size: 312] [--> http://192.168.2.115/img/]
+http://192.168.2.115/manual               (Status: 301) [Size: 315] [--> http://192.168.2.115/manual/]
+http://192.168.2.115/robots.txt           (Status: 200) [Size: 623]
+http://192.168.2.115/font                 (Status: 301) [Size: 313] [--> http://192.168.2.115/font/]
+http://192.168.2.115/MCP                  (Status: 301) [Size: 312] [--> http://192.168.2.115/MCP/]
+http://192.168.2.115/server-status        (Status: 403) [Size: 278]
+
+===============================================================
+2023/10/27 11:10:23 Finished
+===============================================================
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Inhalt der Datei `/robots.txt` wird untersucht. Diese Datei weist Suchmaschinen normalerweise an, welche Bereiche nicht indexiert werden sollen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die `robots.txt` enthält eine Liste von Pfaden, die für einen normalen Webserver ungewöhnlich sind (`/user`, `/program`, `/memory`, `/kernel`, `/docker`, etc.). Besonders auffällig ist der letzte Eintrag: `/??????`. Dies ist ein klarer Hinweis (typisch für CTFs), diesen spezifischen Pfad zu untersuchen.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Navigiere sofort zu `http://192.168.2.115/??????` im Browser und untersuche den Quellcode dieser Seite. Die anderen Pfade könnten ebenfalls Hinweise enthalten, aber `/??????` ist der primäre Fokus.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Verwenden Sie `robots.txt` nur für den vorgesehenen Zweck (Anweisungen an Suchmaschinen). Listen Sie keine internen oder nicht existierenden Pfade auf, um keine unnötigen Hinweise zu geben.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+# Inhalt von http://192.168.2.115/robots.txt
+
+/user
+/admin
+/program
+/memory
+/kernel
+/boot
+/404
+/docker
+/??????
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Quellcode der Seite `http://192.168.2.115/??????` wird im Browser untersucht (view-source).
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Im Quellcode befindet sich ein HTML-Kommentar: `<!-- kzhh:SbWP9q94ZtE9qD -->`. Dies sieht stark nach einem Benutzernamen (`kzhh`) und einem dazugehörigen Passwort oder verschlüsselten String (`SbWP9q94ZtE9qD`) aus. Das ist ein kritischer Fund wegen potentieller Credential Leakage.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Bewahre diese potentiellen Credentials auf. Versuche sie später für den SSH-Login. Untersuche parallel weiter die anderen interessanten Pfade, insbesondere `/MCP/`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Speichern Sie niemals Credentials, API-Schlüssel oder andere sensible Daten im Client-seitigen Code (HTML, JavaScript) oder in Kommentaren. Führen Sie regelmäßige Code-Reviews durch, um solche Leaks zu finden.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+# Quellcode von view-source:http://192.168.2.115/??????
+
+<!-- kzhh:SbWP9q94ZtE9qD -->
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Das Verzeichnis `/MCP/` wird weiter untersucht, und die Datei `tron.txt` wird gefunden und ihr Inhalt angezeigt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Datei enthält einen Dialog mit Tron-Referenzen und eine lange Zeichenkette (`KysrK...Lg`), die wie Base64-kodierter Text aussieht.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dekodiere die Base64-Zeichenkette. Suche im `/MCP/`-Verzeichnis nach weiteren Dateien.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Überprüfen Sie regelmäßig den Inhalt von Webserver-Verzeichnissen auf nicht benötigte oder sensitive Dateien.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+# Inhalt von http://192.168.2.115/MCP/tron.txt
+
+MASTER CNTRL PRGRAM
+----------------------
+
+Ram:
+Do you believe in the Users?
+
+Crom:
+Sure I do! If I didn't have a User, than who wrote me?
+
+
+KysrKysrKysrK1s+Kz4rKys+KysrKysrKz4rKysrKysrKysrPDw8PC1dPj4+PisrKysrKysrKysrKy4tLS0tLi0tLS0tLS0tLS0tLisrKysrKysrKysrKysrKysrKysrKysrKy4tLS0tLS0tLS0tLS0tLS0tLS0tLS4rKysrKysrKysrKysrLg
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Die gefundene Base64-Zeichenkette wird mit `echo -n ... | base64 -d` dekodiert. Die Option `-n` verhindert ein abschließendes Newline-Zeichen, das die Dekodierung stören könnte.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Ergebnis der Dekodierung ist `++++++++++[>+>+++>+++++++>++++++++++<<<<-]>>>>++++++++++++.----.-----------.++++++++++++++++++++++++.--------------------.+++++++++++++.`. Dies ist Code in der esoterischen Programmiersprache Brainfuck.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führe den Brainfuck-Code mit einem Interpreter aus oder nutze einen Online-Decoder (wie z.B. dcode.fr), um das Ergebnis zu erhalten.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Dies ist Teil des CTF-Puzzles. In einem realen Szenario wäre das Auftauchen von solchem Code in einer Textdatei höchst ungewöhnlich und könnte auf eine Kompromittierung oder versteckte Daten hindeuten.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">echo -n "KysrKysrKysrK1s+Kz4rKys+KysrKysrKz4rKysrKysrKysrPDw8PC1dPj4+PisrKysrKysrKysrKy4tLS0tLi0tLS0tLS0tLS0tLisrKysrKysrKysrKysrKysrKysrKysrKy4tLS0tLS0tLS0tLS0tLS0tLS0tLS4rKysrKysrKysrKysrLg" | base64 -d</span></div>
+                    <pre>
+++++++++++[>+>+++>+++++++>++++++++++<<<<-]>>>>++++++++++++.----.-----------.++++++++++++++++++++++++.--------------------.+++++++++++++.
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Der Brainfuck-Code wird mithilfe einer externen Ressource (dcode.fr) interpretiert.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Ergebnis der Brainfuck-Interpretation ist das Wort `player`. Dies ist sehr wahrscheinlich ein Benutzername für das System.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Kombiniere diesen Benutzernamen `player` mit den zuvor gefundenen potentiellen Credentials (`kzhh:SbWP9q94ZtE9qD`). Es ist möglich, dass der Benutzer `player` ist und das Passwort `SbWP9q94ZtE9qD` (oder eine dekodierte Version davon) ist. Untersuche auch die nächste gefundene Datei `/MCP/terminalserver/30513.txt`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Siehe vorherige Empfehlung zu Base64/Brainfuck.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <pre>
+# Interpretation des Brainfuck-Codes (z.B. via https://www.dcode.fr/brainfuck-language)
+# Ergebnis:
+player
+                    </pre>
+                </div>
+            </div>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Eine weitere Datei, `30513.txt`, wird im Unterverzeichnis `/MCP/terminalserver/` gefunden und untersucht. Sie enthält die Beschreibung eines Substitutions-Chiffres und eine verschlüsselte Zeichenkette.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Datei beschreibt einen Atbash-Cipher (einfache Umkehrung des Alphabets: a=z, b=y, ...). Die zu dekodierende Zeichenkette ist `SyWP9j94ZgE9jD`. Wenn wir diesen Atbash-Cipher auf die *zuvor im HTML-Kommentar gefundene Zeichenkette* `SbWP9q94ZtE9qD` anwenden (nur auf die Buchstaben), erhalten wir: S->H, b->y, W->D, P->K, Z->A, t->g, E->V, q->j, D->W. Das ergibt: `<span class="password">HyDK9j94AgV9jW</span>`. Der String in dieser Datei (`SyWP9j94ZgE9jD`) scheint eine Variation oder ein Red Herring zu sein, da die Anwendung des Ciphers darauf (`HbDK9q94AtV9qW`) weniger plausibel aussieht. Die wahrscheinlichste Kombination ist nun Benutzername `player` und Passwort `HyDK9j94AgV9jW`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuche nun einen SSH-Login mit `player` und dem Passwort `HyDK9j94AgV9jW`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Verwenden Sie keine einfachen oder bekannten Chiffrierverfahren zur Sicherung von Passwörtern. Speichern Sie Passwörter niemals in Klartext oder leicht umkehrbarer Form. Verwenden Sie stattdessen starke Hashing-Algorithmen mit Salt. Vermeiden Sie das Hinterlassen von Hinweisen auf verwendete Chiffren oder Schlüssel.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+# Inhalt von http://192.168.2.115/MCP/terminalserver/30513.txt
+
+substitute
+--------------------------
+plaintext
+abcdefghijklmnopqrstuvwxyz
+
+ciphertext
+zyxwvutsrqponmlkjihgfedcba
+--------------------------
+SyWP9j94ZgE9jD
+                    </pre>
+                     <pre>
+# Anwendung des Atbash-Ciphers auf "SbWP9q94ZtE9qD" (aus HTML-Kommentar) ergibt:
+# <span class="password">HyDK9j94AgV9jW</span>
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Es wird versucht, sich per SSH mit dem ermittelten Benutzernamen `player` und dem dekodierten Passwort `<span class="password">HyDK9j94AgV9jW</span>` am Zielsystem (`tron.vm`, welches auf 192.168.2.115 auflöst) anzumelden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der SSH-Login war erfolgreich! Die Kombination der verschiedenen Hinweise (Brainfuck für Username, HTML-Kommentar für Passwort-Rohdaten, Textdatei für Cipher) hat zum Ziel geführt. Wir haben nun initialen Zugriff als Benutzer `player`.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Der erste Schritt auf dem System ist die Enumeration. Überprüfe die Rechte des Benutzers (`id`, `sudo -l`), suche nach SUID/SGID-Dateien (`find / -type f \( -perm -4000 -o -perm -2000 \) -ls 2>/dev/null`), durchsuche das Home-Verzeichnis und Konfigurationsdateien nach weiteren Hinweisen oder Passwörtern. Das User-Flag ist wahrscheinlich im Home-Verzeichnis zu finden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Setzen Sie starke, einzigartige Passwörter für alle Benutzer durch. Erwägen Sie die Deaktivierung der Passwort-Authentifizierung für SSH und verwenden Sie stattdessen Schlüsselpaare. Überwachen Sie SSH-Login-Versuche und erfolgreiche Logins. Entfernen Sie nicht benötigte Benutzerkonten.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh player@tron.vm</span></div>
+                    <pre>
+player@tron.vm's password: <span class="password">HyDK9j94AgV9jW</span> <!-- Passwort eingegeben -->
+Linux tron 4.19.0-16-amd64 #1 SMP Debian 4.19.181-1 (2021-03-19) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+                    </pre>
+                    <div class="prompt" style="color: #ffffff;">player@tron:~$ <span class="command"></span></div> <!-- Erfolgreich eingeloggt -->
+                </div>
+            </div>
+        </section>
+
+        <section id="privilege-escalation">
+             <h2>Privilege Escalation</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Als Benutzer `player` werden erste Enumerationsschritte zur Rechteausweitung durchgeführt.
+                *   `sudo -l`: Prüft auf `sudo`-Rechte.
+                *   `openssl passwd`: Versucht, Passwörter zu hashen (unklar, was das Ziel hier war).
+                *   `nano /etc/passwd`: Versuch, die Passwortdatei zu bearbeiten (scheitert mangels Rechten).
+                *   Lesen von `/etc/passwd` (impliziert): Der Pentester hat den Inhalt von `/etc/passwd` eingesehen und einen interessanten Eintrag für den Benutzer `hacker` gefunden.
+                *   `su hacker`: Versuch, zum Benutzer `hacker` zu wechseln.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> `sudo -l` ergibt keine Rechte. Die anderen Befehle führen nicht direkt zum Erfolg. Der entscheidende Fund ist der Eintrag `hacker:$6$...:0:0:root:/root:/bin/bash` in `/etc/passwd`. Dieser Benutzer `hacker` hat die UID 0 und GID 0, was bedeutet, dass er volle Root-Rechte besitzt. Der nächste logische Schritt ist, das Passwort für `hacker` zu finden oder zu knacken und dann per `su` zu wechseln. Der Text *zeigt nicht*, wie das Passwort für `hacker` erlangt wurde, aber der erfolgreiche `su hacker`-Befehl impliziert, dass es dem Pentester gelungen ist (möglicherweise war es schwach, wiederverwendet oder wurde durch weitere, nicht gezeigte Enumeration gefunden).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Da der Wechsel zu `hacker` erfolgreich war und dieser Root-Rechte hat, ist die Privilege Escalation abgeschlossen. Hole die Flags.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Das Vorhandensein eines Benutzers mit UID/GID 0, der nicht `root` ist, stellt ein extremes Sicherheitsrisiko dar. Entfernen Sie solche Konten sofort. Führen Sie regelmäßige Audits der `/etc/passwd`-Datei und der Benutzerberechtigungen durch. Untersuchen Sie, wie das Passwort für `hacker` kompromittiert werden konnte (schwaches Passwort, Wiederverwendung, anderer Exploit?). Erzwingen Sie starke Passwörter und überwachen Sie `su`-Nutzung.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt" style="color: #ffffff;">player@tron:~$ <span class="command">sudo -l</span></div>
+                     <pre>
+# Keine sudo-Rechte (Ausgabe variiert, z.B. "Sorry, user player may not run sudo on tron.")
+                    </pre>
+                     <div class="prompt" style="color: #ffffff;">player@tron:~$ <span class="command">openssl passwd</span></div>
+                     <pre># Interaktive Passwortabfrage von openssl</pre>
+                    <div class="prompt" style="color: #ffffff;">player@tron:~$ <span class="command">nano /etc/passwd</span></div>
+                    <pre># Öffnet nano, aber Speichern scheitert ohne Root-Rechte</pre>
+                    <pre>
+# Analyse von /etc/passwd (Auszug):
+hacker:$6$EZdVo4XckcU2BJJi$IanX1gZA.t1nk2EgRy1SBDPGa69dLrCqv3eznvqru062GCQ6Eh7VQyXI3lKgsdItq3F/uMWs/VU/TR2E1tzF0:0:0:root:/root:/bin/bash
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="proof-of-concept">
+             <h2>Proof of Concept (Root Access via Misconfiguration)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Nachdem der Benutzer `hacker` mit UID/GID 0 identifiziert wurde und dessen Passwort (auf unbekannte Weise) erlangt wurde, wird der Befehl `su hacker` ausgeführt, um zu diesem Benutzer zu wechseln.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Wechsel zum Benutzer `hacker` war erfolgreich. Da `hacker` die effektiven Rechte von `root` besitzt (UID/GID 0), wurde vollständiger Root-Zugriff auf das System erlangt. Die Privilege Escalation basiert auf einer gravierenden Fehlkonfiguration (einem Nicht-Root-Benutzer mit Root-Privilegien). Der Prompt ändert sich zu `root@tron:/home/player#`, was den erfolgreichen Root-Zugriff bestätigt.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Das System ist kompromittiert. Sammle die User- und Root-Flags als Nachweis.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Korrigieren Sie sofort die Fehlkonfiguration in `/etc/passwd`, indem Sie den `hacker`-Account entfernen oder dessen UID/GID auf einen nicht-privilegierten Wert ändern. Überprüfen Sie das gesamte System auf ähnliche Fehlkonfigurationen oder Backdoors. Führen Sie ein vollständiges Sicherheitsaudit durch.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: #ffffff;">player@tron:~$ <span class="command">su hacker</span></div>
+                     <pre>Password: <!-- Hacker-Passwort hier eingegeben (Quelle unbekannt) --></pre>
+                     <div class="prompt" style="color: #ff0000;">root@tron:/home/player# <span class="command"></span></div> <!-- Root-Zugriff erfolgreich! -->
+                </div>
+            </div>
+            <p class="analysis">
+                <strong>Analyse:</strong> Mit Root-Rechten werden nun die Flag-Dateien gelesen. `user.txt` befindet sich im Home-Verzeichnis von `player`, `root.txt` im Home-Verzeichnis von `root`.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Beide Flags wurden erfolgreich ausgelesen:
+                *   User Flag: `<span class="password">HMVMuserplayer2021</span>`
+                *   Root Flag: `<span class="password">HMVMMasterControlProgram2021</span>`
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Ziel erreicht, Flags dokumentiert.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Neben der Behebung der Sicherheitslücken, überprüfen Sie, ob auf die Flag-Dateien oder andere sensible Daten unbefugt zugegriffen wurde. Ändern Sie alle Passwörter und ggf. SSH-Schlüssel nach der Bereinigung des Systems.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt" style="color: #ff0000;">root@tron:/home/player# <span class="command">cat user.txt</span></div>
+                     <pre><span class="password">HMVMuserplayer2021</span></pre>
+                     <div class="prompt" style="color: #ff0000;">root@tron:/home/player# <span class="command">cat /root/root.txt</span></div>
+                     <pre><span class="password">HMVMMasterControlProgram2021</span></pre>
+                </div>
+            </div>
+        </section>
+
+       <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">cat user.txt</div>
+                    <div class="flag-value"><span class="password">HMVMuserplayer2021</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /root/root.txt</div>
+                    <div class="flag-value"><span class="password">HMVMMasterControlProgram2021</span></div>
+                </div>
+            </div>
+        </section>
+
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: Datum nicht im Text angegeben</p> <!-- Angepasstes Datum -->
+    </footer>
+</body>
+</html>
